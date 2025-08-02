@@ -94,7 +94,7 @@ def sphere2rect(sphere):
 
 def vavg(lis):
 	return [i/len(lis) for i in vsum(lis)]
-	
+
 def moving_avg(lis):#lis:[var1,var2,var3,...var9] at least,  new data at lis[0]
 	return [vavg([lis[0],lis[1],lis[2]]),vavg([lis[3],lis[4],lis[5]]),vavg([lis[6],lis[7],lis[8]])]
 
@@ -254,7 +254,13 @@ class GasMonitor:
 		return self.data[0]
 
 class SourceDector:
-	def __init__(self,):
+	def __init__(self,name,monitors):
+		#monitors:[GasMonitor0,GasMonitor1,...]
+		self.name=name
+		self.monitors=monitors
+		self.geo_center=vavg([i.position for i in monitors])
+	def raw_center(self):
+		return vavg(vsum([]))
 
 class Predictor:
 	def __init__(self,name):
