@@ -1,6 +1,7 @@
 import sympy as syp
-import numpy as nyp
+import numpy as nup
 from sympy.vector import CoordSys3D,scalar_potential 
+import numba as nub
 
 def vplus(vec0,vec1):
 	return [vec0[i]+vec1[i] for i in range(0,len(vec0))] 	
@@ -29,7 +30,7 @@ def vminus(vec0,vec1):
 def vamp(lbd,vec):
 	return [lbd*i for i in vec] 
 	
-def vdot(vec0,vec1):
+def vdot(vec0,vec1): 
 	return sum([vec0[i]*vec1[i] for i in range(0,len(vec0))])
 	
 def vtimes(vec0,vec1):
@@ -113,6 +114,8 @@ def coord_convert(coords,base_a,ori_a,base_b,ori_b):
 	b_inv=syp.Matrix(b_aff).inv()
 	
 	return (b_inv*a_aff*syp.Matrix(coo_c))[0:3]
+def gpu_accel():
+	pass
 
 class Wind:
 	def __init__(self,name,back_data,timediff,timediff_times=3): # moving_avg() limited 
@@ -148,7 +151,7 @@ class Surface:
 		vec1= vnormalize(vec_1)
 		self.vec0=vec0
 		self.vec1=vec1
-		self.point1=vsum([self.point,vec_0,vec_1])
+		self.point1=vsum([self.point,vec_0,vec_1]) 
 		
 	def rnvec(self,source,wind): #source:[source_x,source_y,source_z] wind:[vw_x,vw_y,vw_z]
 		wind_vec=wind.get_val(0)
@@ -212,10 +215,12 @@ class GaussModel:
 		self.y=syp.symbols(name+'_y')
 		self.z=syp.symbols(name+'_z')
 		self.t=syp.symbols(name+'_t')
-		self.D=syp.symbols(name+'_D')
-		self.expr=(1/(4*syp.pi*self.D*self.t)**(3/2))*syp.exp(-((self.x**2+self.y**2+(self.z**2)/(4*self.D*self.t))))
+		self.Dx=syp.symbols(name+'_Dx')
+		self.Dy=syp.symbols(name+'_Dy')
+		self.Dz=syp.symbols(name+'_Dz')
+		self.expr=(1/(syp.sqrt(self.Dx*self.Dy*self.Dz)*(4*syp.pi*self.t)**(3/2)))*syp.exp(-((((self.x**2 /self.Dx)+(self.y**2 / self.Dy)+(self.z**2 /self.Dz))/(4*self.t))))
 		space_coords=[self.x,self.y,self.z]
-		self.expr=self.expr.subs({space_coords[i]:coord_convert(space_coords,[[1,0,0],[0,1,0],[0,0,1]],source,[[1,0,0],[0,1,0],[0,0,1]],[0,0,0])[i] for i in range(0,space_coords)})
+		self.expr=self.expr.subs({space_coords[i]:coord_convert(space_coords,[[1,0,0],[0,1,0],[0,0,1]],source_position,[[1,0,0],[0,1,0],[0,0,1]],[0,0,0])[i] for i in range(0,space_coords)})
 		
 	def get_expr(self):
 		return self.expr
@@ -229,11 +234,14 @@ class GaussModel:
 	
 	
 class Dgas:
-	def __init__(self,name,stdval):
+	def __init__(self,name,std_x,std_y,std_z):
 		self.name=name
-		self.std_val=stdval
+		self.std_x=std_x
+		self.std_y=std_y
+		self.std_z=std_z
+		self.stdval=[std_x,std_y,std_z]
 	def get_cor_val(self,abs_tmpr=273.15+25,prss=101):# unit : C,kPa
-		return self.std_val * (101/prss) *(abs_tmpr**(3/2)/(273.15+25)**(3/2))
+		return vamp((101/prss) *(abs_tmpr**(3/2)/(273.15+25)**(3/2)),self.stdval)
 		
 class GasMonitor:
 	def __init__(self,data,position):  
@@ -259,8 +267,11 @@ class SourceDector:
 		self.name=name
 		self.monitors=monitors
 		self.geo_center=vavg([i.position for i in monitors])
+		
 	def raw_center(self):
-		return vavg(vsum([]))
+		return vavg(vsum([vamp(i.get_newval(),i.position) for i in self.monitors]))
+
+
 
 class Predictor:
 	def __init__(self,name):
@@ -275,6 +286,8 @@ class Predictor:
 		phi_0=(gas_monitor.get_newval()-avg(gas_monitor.data))/c_expr.subs({self.coords[i]:(gas_monitor.position+[1])[i] for i in range(0,len(self.coords))}).subs(gauss_model.D,dgas.get_cor_val(temp,pres))
 		c_expr=c_expr*phi_0
 		return c_expr.subs({self.coords[i]:(coord+[times])[i] for i in range(0,len(self.coords))}).subs(gauss_model.D,dgas.get_cor_val(temp,pres)).evalf()*(1-env_discriptor.decrease+env_discriptor.expr).subs({{env_discriptor.coords[i]:(coord)[i] for i in range(0,len(env_discriptor.coords))}})
+	def get_lbdfy(self):
+		pass
+	
 		
 		
-
