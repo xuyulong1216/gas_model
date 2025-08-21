@@ -282,10 +282,10 @@ class Predictor:
 		self.t=syp.symbols(name+'_t')
 		self.coords=[self.x,self.y,self.z,self.t]
 	def get_value(self,gauss_model,gas_monitor,env_discriptor,dgas,temp,pres,wind,coords,time):
-		c_expr=convol(gauss_model.coeff_expr(wind),syp.Piecewise((1,self.t < time),(0,True)),self.t)
+		c_expr=gauss_model.coeff_expr(wind)
 		phi_0=(gas_monitor.get_newval()-avg(gas_monitor.data))/c_expr.subs({self.coords[i]:(gas_monitor.position+[1])[i] for i in range(0,len(self.coords))}).subs(gauss_model.D,dgas.get_cor_val(temp,pres))
 		c_expr=c_expr*phi_0
-		return c_expr.subs({self.coords[i]:(coord+[times])[i] for i in range(0,len(self.coords))}).subs(gauss_model.D,dgas.get_cor_val(temp,pres)).evalf()*(1-env_discriptor.decrease+env_discriptor.expr).subs({{env_discriptor.coords[i]:(coord)[i] for i in range(0,len(env_discriptor.coords))}})
+		return convol(syp.Piecewice((1,syp.And(t>0,t<time)),(0,True)), c_expr.subs({self.coords[i]:(coord+[times])[i] for i in range(0,len(self.coords))}).subs(gauss_model.D,dgas.get_cor_val(temp,pres)).evalf()*(1-env_discriptor.decrease+env_discriptor.expr).subs({{env_discriptor.coords[i]:(coord)[i] for i in range(0,len(env_discriptor.coords))}}))
 	def get_lbdfy(self):
 		pass
 	
