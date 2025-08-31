@@ -217,13 +217,8 @@ class EnvDiscriptor:
 		return self.decrease
 	
 	def get_value(self,expr_func,point):
-		reflect=lambda x: i.(coord_convert(x)) for i in self.cubes
-		if self.texpr.subs(dic_gen(self.coords,point)) == 0 :
-			return expr_func(point)
-		elif self.texpr.subs(dic_gen(self.coords,point)) > 0:
-			return expr_func(point)+expr_func(reflect(point))
-		elif self.texpr.subs(dic_gen(self.coords,point)) > 0
-			return expr_func(point)-expr_func(reflect(point))
+		bases=[i.base for i in self.cubes]
+		
 class Dgas:
 	def __init__(self,name,std_x,std_y,std_z):
 		self.name=name
