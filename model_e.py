@@ -148,7 +148,6 @@ class Surface:
 		self.point=point
 		self.diag0=diag0
 		self.diag1=diag1
-
 		vec_0= vminus(diag0,point)
 		vec_1= vminus(diag1,point)
 		self.nvec=vnormalize(vtimes(vec_0,vec_1))
@@ -182,18 +181,20 @@ class Cube:
 		self.z=syp.symbols(name+'_z')
 		self.base=[vsum([vminus([0,0,0],vamp(leng,rnvec))]),vsum([vminus(surface.diag0,surface.point)]),vsum([vminus(surface.diag1,surface.point)])]
 		self.surface=surface
+		self.ord=surface.point
 		self.abscoord=[self.x,self.y,self.z]
 		
-	def get_reflect(self,str_=0.8,leng=3):
+	def get_reflect(self,stre=0.8,leng=3):
 		world_coord=[[1,0,0],[0,1,0],[0,0,1]]
 		coord_converted=coord_convert(self.abscoord,world_coord,[0,0,0],self.base,self.surface.point)
-		return syp.Piecewise((str_*syp.exp(-coord_converted[0]),syp.And(*[var_rng(i,[0,1]) for i in coord_converted])),(0,True))
+		return syp.Piecewise((stre*syp.exp(-coord_converted[0]),syp.And(*[var_rng(i,[0,1]) for i in coord_converted])),(0,True))
 	
-	def get_decrease(self,str_=0.8leng=3):
+	def get_decrease(self,stre=0.8,leng=3):
 		range_list[[-1,0],[0,1],[0,1]]
 		coord_converted=coord_convert(self.abscoord,world_coord,[0,0,0],self.base,self.surface.point)
 		return syp.Piecewise((str_*syp.exp(-coord_converted[0]),syp.And(*[var_rng(coord_converted[i],range_list[i]) for i in range(0,len(coord_converted))])),(0,True))
 	
+		
 	
 		
 class EnvDiscriptor:
@@ -212,12 +213,13 @@ class EnvDiscriptor:
 		self.texpr=self.expr+self.decrease
 	def get_expr(self):
 		return self.expr
-		
+		 
 	def get_decrease(self):
 		return self.decrease
 	
-	def get_value(self,expr_func,point):
-		bases=[i.base for i in self.cubes]
+	def get_refpoints(self,point):
+		return [coord_convert(coord_convert(point,[[0,0,0],[0,0,0],[0,0,0]],[0,0,0],i.base,i.ord),(sy.Matrix([[-1,0,0],[0,1,0],[0,0,1]])*syp.Matrix(i)).tolist().base,i.ord,[[0,0,0],[0,0,0],[0,0,0]],[0,0,0]) for i in self.cubes]
+		
 		
 class Dgas:
 	def __init__(self,name,std_x,std_y,std_z):
@@ -300,11 +302,10 @@ class Predictor:
 		return convol(syp.Piecewice((1,syp.And(self.t>0,self.t<time)),(0,True)), c_expr.subs(dic_gen(self.coords,coord))).subs(dic_gen(gauss_model.D,dgas.get_cor_val(temp,pres))).evalf()*(1-env_discriptor.decrease+env_discriptor.expr).subs(dic_gen(env_discriptor.coords,coord)).evalf()
 		
 	def get_lbdfy(self,gauss_model,gas_monitor,env_discriptor,dgas,temp,pres,wind,coords,time):
-		c_expr=gauss_model.coeff_expr(wind).subs(dic_gen(gauss_model.coords,self.coords))
+		c_expr=gauss_model.coeff_expr(wind).subs(dic_gen(gauss_model.coords,self.coords).update(dic_gen(gauss_model.D,dgas.get_cor_val(temp,pres))))
 		phi_0=(gas_monitor.get_newval()-avg(gas_monitor.data))/c_expr.subs(dic_gen(self.coords,gas_monitor.position)).subs(dic_gen(gauss_model.D,dgas.get_cor_val(temp,pres))).evalf()
 		c_expr=c_expr*phi_0
-		convol(syp.Piecewice((1,syp.And(self.t>0,self.t<time)),(0,True)), c_expr.subs(dic_gen(self.coords,coord)).update(dic_gen(gauss_model.D,dgas.get_cor_val(temp,pres))))*(1-env_discriptor.decrease+env_discriptor.expr),self.t).subs(dic_gen(env_discriptor.coords,coord))
-		
+		expr=convol(syp.Piecewice((1,syp.And(self.t>0,self.t<time)),(0,True)), c_expr.subs(dic_gen(self.coords,coord)),self.t)
+		return esum([expr.subs(dic_gen(self.coords,i))*  for i in env_discriptor.get_refpoints(coord) ].append(expr_subs(dic_gen(self.coords,coord))))
 	
-		
 		
