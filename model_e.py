@@ -218,7 +218,7 @@ class EnvDiscriptor:
 		return self.decrease
 	
 	def get_refpoints(self,point):
-		return [coord_convert(coord_convert(point,[[0,0,0],[0,0,0],[0,0,0]],[0,0,0],i.base,i.ord),(sy.Matrix([[-1,0,0],[0,1,0],[0,0,1]])*syp.Matrix(i)).tolist().base,i.ord,[[0,0,0],[0,0,0],[0,0,0]],[0,0,0]) for i in self.cubes]
+		converted=[coord_convet(coord_convert(point,[[0,0,0],[0,0,0],[0,0,0]],[0,0,0],i.base,i.ord),i.base,i.ord,[[0,0,0],[0,0,0],[0,0,0]],[0,0,0]) for i in self.cubes if (coord_convert(point,[[0,0,0],[0,0,0],[0,0,0]],[0,0,0],i.base,i.ord)[1]>=0 and coord_convert(point,[[0,0,0],[0,0,0],[0,0,0]],[0,0,0],i.base,i.ord)[1] <=1 and coord_convert(point,[[0,0,0],[0,0,0],[0,0,0]],[0,0,0],i.base,i.ord)[2] >=0 and coord_convert(point,[[0,0,0],[0,0,0],[0,0,0]],[0,0,0],i.base,i.ord)[2] <= 1)]
 		
 		
 class Dgas:
@@ -306,6 +306,6 @@ class Predictor:
 		phi_0=(gas_monitor.get_newval()-avg(gas_monitor.data))/c_expr.subs(dic_gen(self.coords,gas_monitor.position)).subs(dic_gen(gauss_model.D,dgas.get_cor_val(temp,pres))).evalf()
 		c_expr=c_expr*phi_0
 		expr=convol(syp.Piecewice((1,syp.And(self.t>0,self.t<time)),(0,True)), c_expr.subs(dic_gen(self.coords,coord)),self.t)
-		return esum([expr.subs(dic_gen(self.coords,i))*  for i in env_discriptor.get_refpoints(coord) ].append(expr_subs(dic_gen(self.coords,coord))))
+		return esum([expr.subs(dic_gen(self.coords,i))*(i[0]/nup.abs(i[0]))  for i in env_discriptor.get_refpoints(coord) ].append(expr_subs(dic_gen(self.coords,coord))))
 	
 		
