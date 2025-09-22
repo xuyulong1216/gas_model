@@ -17,14 +17,16 @@ def crc(bytes):
 def addcrc(command):
 	return command+[*crc(bytearray(command))]
 
-class data_gateway:
+
+
+class gateway:
 	def __init__(self,port,baud):
 		self.port=port
 		self.addr=addr
 		self.chn=17-addr
 		self.baud=baud
 		self.ser=serial.Serial(port,baud,timeout=1)
-
+		self.sensors=[]
 		for i in range (1,18):
 			read=[i,0x03,0x00,0x01,0x00,0x01]
 			self.ser.write(bytearray(addcrc(command)))
@@ -40,5 +42,6 @@ class data_gateway:
 		self.ser.write(bytearray(addcrc(command)))
 		re=list(self.ser.read(self.ser.in_waiting))
 		return [re[i]<<8+re[i+1] for i in range(3,len(re-2)/2)]
+	
 
 	

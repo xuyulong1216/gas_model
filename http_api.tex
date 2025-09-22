@@ -1,0 +1,41 @@
+\documentclass[]{ctexart}
+\title{API说明}
+\author{胥宇龙}
+\date{\today}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{physics}
+\usepackage{listingsutf8}
+
+\lstset{
+%backgroundcolor=\color{red!50!green!50!blue!50},%代码块背景色为浅灰色
+rulesepcolor= \color{gray}, %代码块边框颜色
+breaklines=true,  %代码过长则换行
+numbers=left, %行号在左侧显示
+numberstyle= \small,%行号字体
+keywordstyle= \color{blue},%关键字颜色
+commentstyle=\color{gray}, %注释颜色
+frame=shadowbox    %用方框框住代码块
+frame=singleu
+escapeinside=``  % 代码包含中文，把想插入的代码中的中文部分用 ` ` 括起来
+}
+\begin{document}
+\subsection{创建}
+使用POST方法向http://server:port/gateway/create 发送请求，请求要求为json，且具有如下格式：\{ 'port':'COMX','baud':xxxx \}，将创建数据网关对象以进行后续读写操作，当创建成功时返回 201 Created ,若传入数据不合法将返回状态400 Bad Request，创建失败将返回500 Internal Server Error
+\section{读取}
+
+使用GET方法访问。
+\subsection{gateway}
+向http://server:port/gateway 发送请求时，将返回状态200 OK并返回一json文本，其格式为：\{'sensor0':data0,'sensor1':data1 \dots \}
+
+向http://server:port/gateway/0xXX 等特定传感器地址发送请求时，将返回状态200 OK并返回一json文本，其格式为\{'sensorX':dataX \}
+
+当GET请求不符合上述条件时将返回400 Bad Request 错误，在未通过http://server:port/gateway/create 创建网关对象时将返回404 Not Found
+
+\section{预测}
+向http://server:port/predictor/GAS\_TYPE/XX.xx\_YY.yy\_ZZ.zz\\\_TT.tt 发送GET请求，若与此不符则返回400 Bad Reuest，
+其中GAS\_TYPE为以下三者之一： , XX.xx\_YY.yy\_ZZ.zz\_TT.tt为空间坐标与预测时长，按照此格式与顺序写入，可包含小数点
+当符合时将返回200 OK并返回一json文本，格式为\{'gas\_type':GAS\_TYPE,'position': 'XX.xx\_YY.yy\_ZZ.zz',\\'time':'TT\_tt','predict\_value':value \}
+
+\end{document}
