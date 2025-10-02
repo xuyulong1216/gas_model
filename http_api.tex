@@ -21,11 +21,57 @@ frame=singleu
 escapeinside=``  % 代码包含中文，把想插入的代码中的中文部分用 ` ` 括起来
 }
 \begin{document}
+\section{数据网关}
+用于读取气体传感器数据，读取前需要创建数据网关对象，对于未列出的部分，将返回401 Bad Request
 \subsection{创建}
-使用POST方法向http://server:port/gateway/create 发送请求，请求要求为json，且具有如下格式：\{ 'port':'COMX','baud':xxxx \}，将创建数据网关对象以进行后续读写操作，当创建成功时返回 201 Created ,若传入数据不合法将返回状态400 Bad Request，创建失败将返回500 Internal Server Error
+使用POST方法向http://server:port/gateway/setting 发送请求，请求格式为json
+\subsection(示例)
+示例仅给出必须给出的字段
+
+服务器地址为example.com;数据网关连接在串口COM1上，其波特率为9600bps
+
+方法：POST\\
+地址: http://example.com/gateway/setting\\
+请求头: Content-type: application/json\\
+请求体: \{"port":"COM1" "baud":9600 \}\\
+返回值：201 Created\\
+
+将创建数据网关对象以进行后续读写操作，当创建成功时返回 201 Created ,若传入数据不合法将返回状态400 Bad Request，创建失败将返回500 Internal Server Error
+\
+\subsubsection{示例}
+读取数据网关下0x01地址的传感器,其数值为1122：
+
+方法: GET\\
+地址: http://example.com/gateway/setting\\
+
+返回值: 200 OK \\
+\{"0X01":1122\}
+
+读取数据网关下所有传感器数据
+
+方法: GET
+地址: http://example.com/gateway
+
+返回值: 200 OK\\
+\{ "0X01":1122,"0X02":2233 ... \}
+
+\section{气象仪}
+与数据网关类似，其具有类似的方法，下给出示例
+\subsection{创建}
+
+服务器地址为example.com;气象仪连接在串口COM2上，其波特率为9600bps
+
+方法：POST\\
+地址: http://example.com/gateway/setting\\
+请求头: Content-type: application/json\\
+请求体: \{"port":"COM2" "baud":9600 \}\\
+返回值：201 Created\\
+
+
+
 \section{读取}
 
-使用GET方法访问。
+
 \subsection{gateway}
 向http://server:port/gateway 发送请求时，将返回状态200 OK并返回一json文本，其格式为：\{'sensor0':data0,'sensor1':data1 \dots \}
 
