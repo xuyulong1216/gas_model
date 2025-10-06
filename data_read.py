@@ -58,8 +58,7 @@ class gateway_reader:
         regs=[]
         reg_start=self.reg_distribution[group_num][0]
         reg_end=self.reg_distribution[group_num][-1]
-        reg_length=reg_end-reg_start+1
-        for i in range (reg_start,reg_end,125):
+        for i in range (reg_start,reg_end+1,125):
             if reg_end-i-125 <0:
                 k=reg_end-i
             else:
