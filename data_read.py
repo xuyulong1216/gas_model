@@ -36,8 +36,8 @@ class gateway_reader:
                 break
 
     def read(self,start_addr,data_length):
-        start_addr=(start_addr & 0xff00 >>8),(start_addr& 0x00ff)
-        data_length=(data_length & 0xff00 >>8),(data_length & 0x00ff)
+        start_addr=((start_addr & 0xff00 )>>8),(start_addr& 0x00ff)
+        data_length=((data_length & 0xff00) >>8),(data_length & 0x00ff)
         command=[self.addr,0x03,*start_addr,*data_length]
         self.ser.write(bytearray(addcrc(command)))
         re=list(self.read(3))

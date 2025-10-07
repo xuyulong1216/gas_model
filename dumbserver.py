@@ -55,7 +55,6 @@ class dumb_predictor:
         return sum(coords)
 
 class MyHandler(BaseHTTPRequestHandler):
-
     def do_GET(self):
         path_l=self.path.split('/')
         del(path_l[0])
@@ -72,6 +71,7 @@ class MyHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write((json.dumps(data)+ '\n').encode('utf-8'))
             elif len(path_l) == 2:
+                
                 try:
                     data=gateway[0].read(int(path_l[-1],base=0),2)
                 except AttributeError:
@@ -82,10 +82,15 @@ class MyHandler(BaseHTTPRequestHandler):
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
                         self.wfile.write((json.dumps({ "%#04X" % int(path_l[-1],base=0) :data})+ '\n').encode('utf-8'))
+                    if path_l[-1] == "list_sensors" :
+                        self.send_response(200)
+                        self.send_header('Content-type','application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({ 'sensors':  str([ "%#04X" % int(a,base=0)  for a in gateway[0].sensors]) } ) )
             else:
                 self.send_error(400,'Bad Request')
 
-        if path_l[0] == 'atmosphere':
+        elif path_l[0] == 'atmosphere':
             if len(path_l) == 1:
                 try:
                     data=atmo_meter[0].read_all()
