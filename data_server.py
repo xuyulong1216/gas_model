@@ -32,11 +32,6 @@ class gateway:
         return { self.dev_reg_description[i]:raw[i] for i in range(0,len(data))}
     
     
-            
-        
-        
-
-
 class dumb_predictor:
     def __init__(self):
         self.gas_sensors={'CO':[0X01,0X04,0X07,0X0A],'H2S':[0x02,0x05,0x08,0x0B],'flammable':[0x03,0x06,0x09,0x0c] }
@@ -78,7 +73,14 @@ class MyHandler(BaseHTTPRequestHandler):
                         self.send_error(500,'Internal Server Error')
 
                 elif len(path_l) == 3 :
-                    pass
+                    if int(path_l[-2],base=0) in gateway[0].dev_offset:
+                        if path_l[-1] in gateway[0].dev_reg_description:
+                            data=gateway
+                            self.send_response(200)
+                            self.send_header('Content-type','application/json')
+                            self.end_headers()
+                            self.wfile.erite(json.dumps({}))
+                        
                 else:
                     self.send_error(400,'Bad Request')
 
