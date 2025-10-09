@@ -16,21 +16,40 @@ class gateway:
         bitmap=0
         for i in range(0,4):
             bitmap=(bitmap<<16)+(byte_reverser((self.reader.read_group(i)[0]&0xff00 )>>8)<<8)+byte_reverser(self.reader.read_group(i)[0]&0xff)
+        
+        self.dev_offset=[ i for i in range(0,64) if ( ((1 << 64) >> i ) & bitmap) !=0 ]
+        self.dev_uuid=[ self.reader.read(4+i*2,2)[0]<<8+self.reader.read(4+i*2,2)[-1] for i in self.dev_offset]
+        self.dev_map={self.dev_uuid[i]:self.dev_offset[i]  for i in range(0,len(self.dev_offset))}
         self.dev_reg_description=['sensor0','sensor1','sensor2','sensor3','dev_bat_H','dev_bat_L','stat0','stat1','stat2','stat3']
-        self.dev_offset=[]
-        for i in range(0,64):
-            if (0x8000 0000 0000 0000 >>i )& bitmap !=0:
-                self.dev_offset.append(i)
+
 
     def is_exist(self):
         return 1
         
-    def read_device(self,dev_offset):
+    def refresh(self):
+        bitmap=0
+        for i in range(0,4):
+            bitmap=(bitmap<<16)+(byte_reverser((self.reader.read_group(i)[0]&0xff00 )>>8)<<8)+byte_reverser(self.reader.read_group(i)[0]&0xff)
+        
+        self.dev_offset=[ i for i in range(0,64) if ( ((1 << 64) >> i ) & bitmap) !=0 ]
+        self.dev_uuid=[ self.reader.read(4+i*2,2)[0]<<8+self.reader.read(4+i*2,2)[-1] for i in self.dev_offset]
+        self.dev_map={self.dev_uuid[i]:self.dev_offset[i]  for i in range(0,len(self.dev_offset))}
+        self.dev_reg_description=['sensor0','sensor1','sensor2','sensor3','dev_bat_H','dev_bat_L','stat0','stat1','stat2','stat3']
+
+    def read_device(self,dev_offset): 
         data_start=132
         raw=self.reader.read(132+dev_offset,14)
-        raw=[raw[i] for i in range(0,4) ]+[*((raw[i]&0xff00>>8),raw[i]&0xff) for i in range(4,len(raw)) ]
-        return { self.dev_reg_description[i]:raw[i] for i in range(0,len(data))}
+        data=[]
+        for i in range(0,len(raw)) :
+            if i < 4:
+                data.append(raw[i])
+            else:
+                data+[(raw[i]&0xff00)>>8,raw[i]&0xff]
+
+        return {self.dev_reg_description[i]:data[i] for i in range(0,len(data))}
     
+    def read_all(self):
+        return  { "%#06X" % i :self.read_device(i) for i in self.dev_offset}
     
 class dumb_predictor:
     def __init__(self):
@@ -48,32 +67,53 @@ class MyHandler(BaseHTTPRequestHandler):
                 gateway[0].is_exist()
             except AttributeError:
                 self.send_error(404,'Not Found')
+
             else:
                 if len(path_l) == 1:
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
                     self.end_headers()
-                    self.wfile.write((json.dumps()+ '\n').encode('utf-8'))
+                    self.wfile.write((json.dumps(gateway[0].read_all())+ '\n').encode('utf-8'))
 
                 elif len(path_l) == 2:
-                    if int(path_l[-1],base=0) in gateway[0].dev_offset :
-                        data=gateway[0].read_device()
+                    flg=0
+
+                    if len(path_l[-1]>6):
+                        if path_l[-1] in gateway[0].dev_uuid :
+                            data=gateway[0].read_device(gateway[0].dev_map[path_l[-1]])
+                            self.send_response(200)
+                            self.send_header('Content-type', 'application/json')
+                            self.end_headers()
+                            self.wfile.write((json.dumps(data)+ '\n').encode('utf-8'))
+                        else:
+                            self.send_error(500,'Internal Server Error')
+
+                    elif int(path_l[-1],base=0) in gateway[0].dev_offset  and flg == 0:
+                        data=gateway[0].read_device(int(path_l[-1],base=0))
                         self.send_response(200)
                         self.send_header('Content-type', 'application/json')
                         self.end_headers()
-                        self.wfile.write((json.dumps(data)+ '\n').encode('utf-8'))
+                        self.wfile.write((json.dumps(data)+ '\n').encode('utf-8'))  
 
-                    elif path_l[-1] == "list_devices" :
+                    elif path_l[-1] == "list_devices" and flg==0 :
                         self.send_response(200)
                         self.send_header('Content-type','application/json')
                         self.end_headers()
                         self.wfile.write(json.dumps({ 'devices':  str([ "%#06X" % a  for a in gateway[0].dev_offset]) } ) )
                     
+                    elif path_l[-1] == 'list_uuid' and flg == 0 :
+                        self.send_response(200)
+                        self.send_header('Content-type','application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({ 'uuid':  str([ "%#0X" % a  for a in gateway[0].dev_uuid]) } ) )
+                    
                     else :
                         self.send_error(500,'Internal Server Error')
 
                 elif len(path_l) == 3 :
+                    
                     if int(path_l[-2],base=0) in gateway[0].dev_offset:
+                        
                         if path_l[-1] in gateway[0].dev_reg_description:
                             data=gateway
                             self.send_response(200)
@@ -155,6 +195,7 @@ class MyHandler(BaseHTTPRequestHandler):
             
         else:
             self.send_error(400,'Bad Request')
+
     def do_POST(self):
         path_l=self.path.split('/')
         del(path_l[0])
