@@ -18,16 +18,16 @@ class gateway_with_buffer(data_read.gateway_interface):
         super().__init__(port,baud)
 
     def alert(self):
-        for i in self.dev_offset:
-            self.read_device(i)
-        
-        return {uuid:{sensor:{alert:level,err:code} for sensor in }for uuid in self.dev_uuid }
+        raw=[self.read_device(i) for i in self.dev_offset]
+        seprated=[ [[(i[k]&0xf0)>>4,i[k]&0xf]  for k in ['stat0','stat1','stat2','stat3'] ] for i in raw  ]
+        return {self.dev_uuid[i]:{'sensor'+str(j) :{  'alert':k[-1] if k[0]== 0xa,'error' :k[-1] if k[0]==0xb for k in seprated[i][j] } for j in range(0,len(seprated[i]))} for i in range(0,len(self.dev_uuid))}
     
     def uuid2offset(self,uuid):
         return self.dev_map[uuid]
     
     def diaslert(self):
         self.write_reg(580,0)
+
     
 class dumb_predictor:
     def __init__(self):
@@ -47,6 +47,11 @@ class MyHandler(BaseHTTPRequestHandler):
         path_l=self.path.split('/')
         del(path_l[0])
         print(path_l)
+        '''
+        for i in path_l:
+            
+            
+            '''
         if path_l[0] == 'gateway':
             try:
                 gateway[0].is_exist()
@@ -75,6 +80,9 @@ class MyHandler(BaseHTTPRequestHandler):
                     elif path_l[-1] == 'list_device_uuid' and flg == 0 :
                         self.__send_json({ 'uuid':  str([ "%#08X" % a  for a in gateway[0].dev_uuid]) })
                     
+                    elif path_l[-1] == 'alert' and flg==0:
+                        self.__send_json(gateway[0].alert())
+
                     else :
                         self.send_error(500,'Internal Server Error')
 
@@ -88,7 +96,6 @@ class MyHandler(BaseHTTPRequestHandler):
                         elif path_l[-2] in gateway[0].dev_uuid :
                             self.__send_json({path_l[-1]:gateway[0].read_device(gateway[0].dev_map[path_l[-2]])[path_l[-1]]})
                                 
-                        
                 else:
                     self.send_error(400,'Bad Request')
 
@@ -178,7 +185,7 @@ class MyHandler(BaseHTTPRequestHandler):
         elif path_l[0] == 'gateway':
             req=eval(self.rfile.read(int(self.headers.get('Content-Length', 0))).decode('utf-8'))
             
-            gateway[0]=dumb_gateway(req['port'],req['baud'])
+            gateway[0]=gateway_with_buffer(req['port'],req['baud'])
             self.send_error(201,'Created')
         elif path_l[0] == 'atmosphere':
             req=eval(self.rfile.read(int(self.headers.get('Content-Length', 0))).decode('utf-8'))
