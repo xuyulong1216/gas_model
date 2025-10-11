@@ -16,17 +16,22 @@ def dreflect(dic):
 class gateway_with_buffer(data_read.gateway_interface):
     def __init__(self,port,baud):
         super().__init__(port,baud)
-
-    def alert(self):
-        raw=[self.read_device(i) for i in self.dev_offset]
-        seprated=[ [[(i[k]&0xf0)>>4,i[k]&0xf]  for k in ['stat0','stat1','stat2','stat3'] ] for i in raw  ]
-        return {self.dev_uuid[i]:{'sensor'+str(j) :{  'alert':k[-1] if k[0]== 0xa,'error' :k[-1] if k[0]==0xb for k in seprated[i][j] } for j in range(0,len(seprated[i]))} for i in range(0,len(self.dev_uuid))}
     
     def uuid2offset(self,uuid):
         return self.dev_map[uuid]
     
     def diaslert(self):
         self.write_reg(580,0)
+
+
+'''
+    def alert(self):
+        raw=[self.read_device(i) for i in self.dev_offset]
+        seprated=[ [[(i[k]&0xf0)>>4,i[k]&0xf]  for k in ['stat0','stat1','stat2','stat3'] ] for i in raw  ]
+        return {self.dev_uuid[i]:{'sensor'+str(j) :{  'alert':k[-1] if k[0]== 0xa,'error' :k[-1] if k[0]==0xb for k in seprated[i][j] } for j in range(0,len(seprated[i]))} for i in range(0,len(self.dev_uuid))}
+'''    
+    
+    
 
     
 class dumb_predictor:
@@ -72,7 +77,7 @@ class MyHandler(BaseHTTPRequestHandler):
                             self.send_error(500,'Internal Server Error')
 
                     elif int(path_l[-1],base=0) in gateway[0].dev_offset  and flg == 0:
-                        self.__send_json{gateway[0].read_device(int(path_l[-1],base=0))}  
+                        self.__send_json(gateway[0].read_device(int(path_l[-1],base=0)))
 
                     elif path_l[-1] == "list_devices" and flg==0 :
                         self.__send_json({ 'devices':  str([ "%#06X" % a  for a in gateway[0].dev_offset]) })
@@ -89,7 +94,7 @@ class MyHandler(BaseHTTPRequestHandler):
                 elif len(path_l) == 3 :
                     if len(path_l[-2])<8:
                         if int(path_l[-2],base=0) in gateway[0].dev_offset:
-                            if path_l[-1] in gateway[0].dev_reg_description:path_l[-1]
+                            if path_l[-1] in gateway[0].dev_reg_description:
                                 self.__send_json({path_l[-1] :gateway[0].read_device(int(path_l[-2],base=0)[path_l[-1]] )} )
                             else:
                                 self.send_error(500,'Internal Server Error')
