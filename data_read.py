@@ -29,7 +29,7 @@ class gateway_interface:
 
         for i in range (1,18):
             read=[i,0x03,0x00,0x01,0x00,0x01]
-            self.ser.write(bytearray(addcrc(command)))
+            self.ser.write(bytearray(addcrc(read)))
             result=self.ser.readline()
             if len(result) != 0 and list(result) != [0x05,0xc8,0x01,0xf1,0xc1]:
                 self.addr=i
@@ -37,10 +37,11 @@ class gateway_interface:
 
         self.bitmap=0
         for i in range(0,4):
-            self.bitmap=(bitmap<<16)+(byte_reverser((self.read_group(i)[0]&0xff00 )>>8)<<8)+byte_reverser(self.read_group(i)[0]&0xff)
+            tmp=self.read_group(i)
+            self.bitmap=(self.bitmap<<16)+( (byte_reverser((tmp[0]&0xff00 )>>8)<<8)+byte_reverser(tmp[0]&0xff) )
         
-        self.dev_offset=[ i for i in range(0,64) if ( ((1 << 64) >> i ) & bitmap) !=0 ]
-        self.dev_uuid=[ self.read(4+i*2,2)[0]<<8+self.read(4+i*2,2)[-1] for i in self.dev_offset]
+        self.dev_offset=[ i for i in range(0,64) if ((self.read(4+i*2,2)[0]<<8)+self.read(4+i*2,2)[-1] )  !=0  and i<20 ]
+        self.dev_uuid=[ (self.read(4+i*2,2)[0]<<8)+self.read(4+i*2,2)[-1] for i in self.dev_offset]
         self.dev_map={self.dev_uuid[i]:self.dev_offset[i]  for i in range(0,len(self.dev_offset))}
         self.dev_reg_description=['sensor0','sensor1','sensor2','sensor3','dev_bat_H','dev_bat_L','stat0','stat1','stat2','stat3']
 
@@ -52,31 +53,44 @@ class gateway_interface:
         data_length=((data_length & 0xff00) >>8),(data_length & 0x00ff)
         command=[self.addr,0x03,*start_addr,*data_length]
         self.ser.write(bytearray(addcrc(command)))
-        re=list(self.read(3))
+        re=list(self.ser.read(3))
         re=re+list(self.ser.read(re[-1]+2))
         return [(re[3+2*i]<<8)+re[2*i+4] for i in range(0,(re[2])//2)]
 
+    def  read_bytes(self,start_addr,reg_num):
+        start_addr=((start_addr & 0xff00 )>>8),(start_addr& 0x00ff)
+        data_length=((reg_num & 0xff00) >>8),(reg_num & 0x00ff)
+        command=[self.addr,0x03,*start_addr,*data_length]
+        self.ser.write(bytearray(addcrc(command)))
+        re=list(self.ser.read(3))
+        re=re+list(self.ser.read(re[-1]+2))
+        print('re',re)
+        return [re[i]  for i in range(3,re[2]+3)]
         
     def refresh(self):
-        self,bitmap=0
+        self.bitmap=0
         for i in range(0,4):
-            self,bitmap=(self,bitmap<<16)+(byte_reverser((self.read_group(i)[0]&0xff00 )>>8)<<8)+byte_reverser(self.read_group(i)[0]&0xff)
+            self.bitmap=(self.bitmap<<16)+(byte_reverser( (self.read_group(i)[0]&0xff00 )  >>8) <<8)+byte_reverser(self.read_group(i)[0]&0xff)
         
-        self.dev_offset=[ i for i in range(0,64) if ( ((1 << 64) >> i ) & bitmap) !=0 ]
-        self.dev_uuid=[ self.reader.read(4+i*2,2)[0]<<8+self.reader.read(4+i*2,2)[-1] for i in self.dev_offset]
-        self.dev_map={ self.dev_uuid[i]:self.dev_offset[i]  for i in range(0,len(self.dev_offset))}
+        self.dev_offset=[ i for i in range(0,64) if ((self.read(4+i*2,2)[0]<<8)+self.read(4+i*2,2)[-1] )  !=0  and i<20 ]
+        self.dev_uuid=[ (self.read(4+i*2,2)[0]<<8)+self.read(4+i*2,2)[-1] for i in self.dev_offset]
+        self.dev_map={self.dev_uuid[i]:self.dev_offset[i]  for i in range(0,len(self.dev_offset))}
         self.dev_reg_description=['sensor0','sensor1','sensor2','sensor3','dev_bat_H','dev_bat_L','stat0','stat1','stat2','stat3']
 
     def read_device(self,dev_offset): 
         data_start=132
-        raw=self.read(132+dev_offset,14)
+        raw=self.read(132+dev_offset*14,14)
+        print(raw)
         data=[]
         for i in range(0,len(raw)) :
-            if i < 4:
-                data.append(raw[i])
+            if i < 8:
+                if i in [0,2,4,6]:
+                    data.append(raw[i])
+                else:
+                    data[-1]=(data[-1]<<16)+raw[i]
             else:
-                data=data+[(raw[i]&0xff00)>>8,raw[i]&0xff]
-
+                data=data+[raw[i]]
+        print(data)
         return {self.dev_reg_description[i]:data[i] for i in range(0,len(data))}
     
     def read_all(self):
