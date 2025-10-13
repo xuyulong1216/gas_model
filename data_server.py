@@ -14,7 +14,7 @@ def byte_reverser(byte):
 def dreflect(dic):
 	return {v:k for k,v in dic.items()}
 
-class gateway_with_buffer(data_read.gateway_interface):
+class gateway_without_buffer(data_read.gateway_interface):
     def __init__(self,port,baud):
         print('creating')
         super().__init__(port,baud)
@@ -57,7 +57,7 @@ class gateway_with_buffer(data_read.gateway_interface):
     def offset2uuid(self,offset):
         return dreflect(self.dev_map)[offset]
     
-    def diaslert(self):
+    def mute(self):
         self.write_reg(580,0)
 
     def read_all(self):
@@ -65,10 +65,9 @@ class gateway_with_buffer(data_read.gateway_interface):
 
     def alert(self):
         raw=[self.read_device_raw(i) for i in self.dev_offset]
-
         seprated=[ [ (i[k]&0x3ff) >> 8  for k in ['sensor0','sensor1','sensor2','sensor3'] ] for i in raw  ]
         print(seprated)
-        return {"%#06X" % self.dev_offset[i]:{'sensor'+str(j) :{  'alert':seprated[i][j] } for j in range(0,len(seprated[i]))   } for i in range(0,len(self.dev_uuid))}   
+        return {"%#06X" % self.dev_offset[i]:{'sensor'+str(j) :{  'alert':seprated[i][j] } for j in range(0,len(seprated[i]))   } for i in range(0,len(self.dev_uuid))}
 
 class dumb_predictor:
     def __init__(self):
@@ -86,55 +85,68 @@ class MyHandler(BaseHTTPRequestHandler):
         
     def do_GET(self):
         path_l=self.path.split('/')
-        del(path_l[0])
+        path_l=[ i for i in path_l if i != '']
         print(path_l)
-
         if path_l[0] == 'gateway':
             try:
                 gateway[0].is_exist()
             except AttributeError:
                 self.send_error(404,'Not Found')
-
             else:
                 if len(path_l) == 1:
-                    self.__send_json({"gateway":gateway[0].read_all( ) })
+                    self.__send_json({"gateway":gateway[0].read_all() })
 
                 elif len(path_l) == 2:
-                    flg=0
+                    flg = 0
+                    try:
+                        int(path_l[-1],base0)
+                    except ValueError:
 
-                    if len(path_l[-1])>8 and '_' not in path_l[-1]:
-                        if path_l[-1] in gateway[0].dev_uuid  :
-                            self.__send_json(gateway[0].read_device_adj(gateway[0].dev_map[path_l[-1]]))
+                        if path_l[-1] == "list_devices" :
+                            self.__send_json({ 'devices':  str([ "%#06X" % a  for a in gateway[0].dev_offset]) })
+                        
+                        elif path_l[-1] == 'list_device_uuid'  :
+                            self.__send_json({ 'uuid':  str([ "%#08X" % a  for a in gateway[0].dev_uuid]) })
+                        
+                        elif path_l[-1] == 'alert':
+                            self.__send_json(gateway[0].alert()) 
+                        
+                        elif path_l[-1] == 'mute':
+                            gateway[0].mute()
+                            self.send_response(200)
+
                         else:
+                            self.send_error(400,'Bad Request')
+                    else:
+                        if len(path_l[-1])>8 :
+                            if int(path_l[-1],base=0) in gateway[0].dev_uuid:
+                                self.__send_json(gateway[0].read_device_adj(gateway[0].dev_map[path_l[-1]]))
+
+                            else:
+                                self.send_error(400,'Bad Request')
+ 
+                        elif int(path_l[-1],base=0) in gateway[0].dev_offset :
+                            self.__send_json(gateway[0].read_device_adj(int(path_l[-1],base=0)))
+
+                        else :
                             self.send_error(500,'Internal Server Error')
 
-                    elif path_l[-1] == "list_devices" and flg==0 :
-                        self.__send_json({ 'devices':  str([ "%#06X" % a  for a in gateway[0].dev_offset]) })
-                    
-                    elif path_l[-1] == 'list_device_uuid' and flg == 0 :
-                        self.__send_json({ 'uuid':  str([ "%#08X" % a  for a in gateway[0].dev_uuid]) })
-                    
-                    elif path_l[-1] == 'alert' and flg==0:
-                        self.__send_json(gateway[0].alert()) 
-
-                    elif int(path_l[-1],base=0) in gateway[0].dev_offset  and flg == 0:
-                        self.__send_json(gateway[0].read_device_adj(int(path_l[-1],base=0)))
-
-                    else :
-                        self.send_error(500,'Internal Server Error')
-
-                elif len(path_l) == 3 :
+            if len(path_l) == 3 :
+                try:
+                    dev=int(path_l[-2],base0)
+                except ValueError:
+                    self.send_error(400,'Bad Request')              
+                else:
                     if len(path_l[-2])<8:
-                        if int(path_l[-2],base=0) in gateway[0].dev_offset:
+                        if dev in gateway[0].dev_offset:
                             if path_l[-1] in gateway[0].dev_reg_description:
                                 self.__send_json({path_l[-1] :gateway[0].read_device(int(path_l[-2],base=0)[path_l[-1]] )} )
                             else:
                                 self.send_error(500,'Internal Server Error')
-                        elif path_l[-2] in gateway[0].dev_uuid :
-                            self.__send_json({path_l[-1]:gateway[0].read_device(gateway[0].dev_map[path_l[-2]])[path_l[-1]]})
-                                
-                else:
-                    self.send_error(400,'Bad Request')
+                    elif path_l[-2] in gateway[0].dev_uuid :
+                        self.__send_json({path_l[-1]:gateway[0].read_device(gateway[0].dev_map[path_l[-2]])[path_l[-1]]})
+                    else:
+                        self.send_error(400,'Bad Request')
 
         elif path_l[0] == 'atmosphere':
             if len(path_l) == 1:
@@ -226,7 +238,7 @@ class MyHandler(BaseHTTPRequestHandler):
             body=self.rfile.read(int(self.headers.get('Content-Length', 0))).decode('utf-8')
             req=eval(body)
             print(req)
-            gateway[0]=gateway_with_buffer(req['port'],req['baud'])
+            gateway[0]=gateway_without_buffer(req['port'],req['baud'])
             self.send_error(201,'Created')
 
         elif path_l[0] == 'atmosphere':
