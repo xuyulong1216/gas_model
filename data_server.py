@@ -40,7 +40,7 @@ class gateway_with_buffer(data_read.gateway_interface):
         return res
 
     def read_device_adj(self,dev_offset):
-        res=read_device_raw(self,dev_offset)
+        res=self.read_device_raw(dev_offset)
         for i in ['sensor0','sensor1','sensor2','sensor3']:
             print(res[i] &0x3000)
             if (res[i] &0x3000) != 0:
@@ -49,6 +49,7 @@ class gateway_with_buffer(data_read.gateway_interface):
                 res[i] = 'masked'
             else:
                 res[i]= res[i] & 0x03ff
+        return res
 
     def uuid2offset(self,uuid):
         return self.dev_map[uuid]
@@ -58,7 +59,7 @@ class gateway_with_buffer(data_read.gateway_interface):
     
     def diaslert(self):
         self.write_reg(580,0)
-qqqqq
+
     def read_all(self):
         return  { "%#06X" % i :self.read_device_adj(i) for i in self.dev_offset }
 
@@ -227,7 +228,7 @@ class MyHandler(BaseHTTPRequestHandler):
             print(req)
             gateway[0]=gateway_with_buffer(req['port'],req['baud'])
             self.send_error(201,'Created')
-       :
+
         elif path_l[0] == 'atmosphere':
             req=eval(self.rfile.read(int(self.headers.get('Content-Length', 0))).decode('utf-8'))
             
