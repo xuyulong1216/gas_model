@@ -141,6 +141,13 @@ class atmo:
         self.addr=1
         self.baud=baud
         self.ser=ser.Serial(port,baud,timeout=1)
+        for i in range (1,18):
+            read=[i,0x03,0x00,0x01,0x00,0x01]
+            self.ser.write(bytearray(addcrc(read)))
+            result=self.ser.readline()
+            if len(result) != 0 and list(result) != [0x05,0xc8,0x01,0xf1,0xc1]:
+                self.addr=i
+                break
         self.sensors=['wind_speed','wind_power','wind_direction_analog','wind_direction_degree','humidit','tempreture','noise','variable','PM10','air_pressure','illuminance_full','illuminance_short','rainfall','compass','sun_radient']
         self.addrs=[[500],[501],[502],[503],[504],[505],[506],[507],[508],[509],[510,511],[512],[513],[514],[515]]
 #        print (len(self.sensors))
@@ -168,4 +175,13 @@ class atmo:
 
     def read_sensor(self,sensor):
         data=self.read(self.compat[sensor][0],len(self.compat[sensor]))
+        if len(data) !=1:
+            data=(data[0]<<16)+data[-1]
         return data
+    
+    def read_all(self):
+
+        return { self.sensors[i]:self.read_sensor(i)  for i in range(0,len(data)) }
+
+  
+            

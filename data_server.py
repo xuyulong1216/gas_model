@@ -58,16 +58,41 @@ class gateway_without_buffer(data_read.gateway_interface):
         return dreflect(self.dev_map)[offset]
     
     def mute(self):
-        self.write_reg(580,0)
+        return self.write_reg(580,0)
 
     def read_all(self):
         return  { "%#06X" % i :self.read_device_adj(i) for i in self.dev_offset }
 
     def alert(self):
         raw=[self.read_device_raw(i) for i in self.dev_offset]
-        seprated=[ [ (i[k]&0x3ff) >> 8  for k in ['sensor0','sensor1','sensor2','sensor3'] ] for i in raw  ]
+        seprated=[ [ ((i[k]&0xcff ) >> 8)>2  for k in ['sensor0','sensor1','sensor2','sensor3'] ] for i in raw  ]
         print(seprated)
         return {"%#06X" % self.dev_offset[i]:{'sensor'+str(j) :{  'alert':seprated[i][j] } for j in range(0,len(seprated[i]))   } for i in range(0,len(self.dev_uuid))}
+    
+    def full_data(self):
+        raw={"%#06X" % i :self.read_device_raw(i) for i in self.dev_offset}
+        for i in self.dev_offset:
+            raw["%#06X" % i ]['uuid']=  "%#08X" %  self.offset2uuid(i) 
+            raw["%#06X" %  i]['alert']= {   j: ((raw["%#06X" %  i][j]&0xcff) >>8)>>2  for j in ['sensor'+str(k)  for k in range(0,4)]}
+            print( str(int(raw["%#06X" %  i]['uuid'],base=0))[-7:-4] )
+            if  str(int(raw["%#06X" %  i]['uuid'],base=0))[-7:-4]  == '127' :
+                raw["%#06X" %  i]['type']='portable'
+            else:
+                raw["%#06X" %  i]['type']='fixed' 
+            for k in ['sensor0','sensor1','sensor2','sensor3']:
+               # print(raw["%#06X" %  i][k] &0x3000)
+                if (raw["%#06X" %  i][k] &0x3000) != 0:
+                    raw["%#06X" %  i][k] = 'err'
+                elif raw["%#06X" %  i][k] == 0x8000:
+                    raw["%#06X" %  i][k] = 'masked'
+                else:
+                    raw["%#06X" %  i][k]= raw["%#06X" %  i][k] & 0x03ff
+        return raw
+
+        
+       
+        
+
 
 class dumb_predictor:
     def __init__(self):
@@ -99,28 +124,32 @@ class MyHandler(BaseHTTPRequestHandler):
                 elif len(path_l) == 2:
                     flg = 0
                     try:
-                        int(path_l[-1],base0)
+                        int(path_l[-1],base=0)
                     except ValueError:
 
                         if path_l[-1] == "list_devices" :
                             self.__send_json({ 'devices':  str([ "%#06X" % a  for a in gateway[0].dev_offset]) })
-                        
+                        elif path_l[-1] == 'details':
+                            self.__send_json(gateway[0].full_data() )
                         elif path_l[-1] == 'list_device_uuid'  :
-                            self.__send_json({ 'uuid':  str([ "%#08X" % a  for a in gateway[0].dev_uuid]) })
+                            self.__send_json({ 'uuid':  str([ "%#010" % a  for a in gateway[0].dev_uuid]) })
                         
                         elif path_l[-1] == 'alert':
                             self.__send_json(gateway[0].alert()) 
                         
                         elif path_l[-1] == 'mute':
-                            gateway[0].mute()
-                            self.send_response(200)
-
+                            res=gateway[0].mute()
+                            print(res)
+                            if res == 0:
+                                self.__send_json({'success':1})
+                            else:
+                                self.send_error(500,'Internal Server Error')
                         else:
                             self.send_error(400,'Bad Request')
                     else:
-                        if len(path_l[-1])>8 :
+                        if len(path_l[-1])>7 :
                             if int(path_l[-1],base=0) in gateway[0].dev_uuid:
-                                self.__send_json(gateway[0].read_device_adj(gateway[0].dev_map[path_l[-1]]))
+                                self.__send_json(gateway[0].read_device_adj(gateway[0].dev_map[int(path_l[-1],base=0)]))
 
                             else:
                                 self.send_error(400,'Bad Request')
