@@ -57,7 +57,7 @@ class gateway_interface:
         re=re+list(self.ser.read(re[-1]+2))
         return [(re[3+2*i]<<8)+re[2*i+4] for i in range(0,(re[2])//2)]
 
-    def  read_bytes(self,start_addr,reg_num):
+    def read_bytes(self,start_addr,reg_num):
         start_addr=((start_addr & 0xff00 )>>8),(start_addr& 0x00ff)
         data_length=((reg_num & 0xff00) >>8),(reg_num & 0x00ff)
         command=[self.addr,0x03,*start_addr,*data_length]
@@ -135,6 +135,37 @@ class gateway_interface:
     def write_reg_group(self,addr,data):
         pass 
         
-    
+class atmo:
+    def __init__(self,port,baud):
+        self.port=port
+        self.addr=1
+        self.baud=baud
+        self.ser=ser.Serial(port,baud,timeout=1)
+        self.sensors=['wind_speed','wind_power','wind_direction_analog','wind_direction_degree','humidit','tempreture','noise','variable','PM10','air_pressure','illuminance_full','illuminance_short','rainfall','compass','sun_radient']
+        self.addrs=[[500],[501],[502],[503],[504],[505],[506],[507],[508],[509],[510,511],[512],[513],[514],[515]]
+#        print (len(self.sensors))
+#        print(len(self.addrs))
+        self.compat={self.sensors[i]:self.addrs[i] for i in range(0,len(self.addrs))}   
 
-    
+    def read(self,start_addr,data_length):
+        start_addr=((start_addr & 0xff00 )>>8),(start_addr& 0x00ff)
+        data_length=((data_length & 0xff00) >>8),(data_length & 0x00ff)
+        command=[self.addr,0x03,*start_addr,*data_length]
+        self.ser.write(bytearray(addcrc(command)))
+        re=list(self.ser.read(3))
+        re=re+list(self.ser.read(re[-1]+2))
+        return [(re[3+2*i]<<8)+re[2*i+4] for i in range(0,(re[2])//2)]
+
+    def read_bytes(self,start_addr,reg_num):
+        start_addr=((start_addr & 0xff00 )>>8),(start_addr& 0x00ff)
+        data_length=((reg_num & 0xff00) >>8),(reg_num & 0x00ff)
+        command=[self.addr,0x03,*start_addr,*data_length]
+        self.ser.write(bytearray(addcrc(command)))
+        re=list(self.ser.read(3))
+        re=re+list(self.ser.read(re[-1]+2))
+        #print('re',re)
+        return [re[i] for i in range(3,re[2]+3)]
+
+    def read_sensor(self,sensor):
+        data=self.read(self.compat[sensor][0],len(self.compat[sensor]))
+        return data
