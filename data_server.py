@@ -178,37 +178,25 @@ class MyHandler(BaseHTTPRequestHandler):
                         self.send_error(400,'Bad Request')
 
         elif path_l[0] == 'atmosphere':
-            if len(path_l) == 1:
-                try:
-                    data=atmo_meter[0].read_all()
-                except AttributeError:
-                    self.send_error(404,'Not Found')
-                else: 
-                    self.send_response(200)
-                    self.send_header('Content-type', 'application/json')
-                    self.end_headers()
-                    self.wfile.write((json.dumps(data)+ '\n').encode('utf-8'))
-            elif len(path_l) == 2:
-                try:
-                    data=atmo_meter[0].is_exist()
-                except AttributeError:
-                    self.send_error(404,'Not Found')
-                else:
-                    if path_l[-1] in atmo_meter[0].sensors :
-                        self.send_response(200)
-                        self.send_header('Content-type', 'application/json')
-                        self.end_headers()
-                        data=data=atmo_meter[0].read(path_l[-1])
-                        self.wfile.write((json.dumps({ path_l[-1] :data})+ '\n').encode('utf-8'))
-                    elif path_l[-1] == 'list_sensors':
-                        self.send_response(200)
-                        self.send_header('Content-type', 'application/json')
-                        self.end_headers()
-                        self.wfile.write((json.dumps({'sensors':str(atmo_meter[0].sensors)})+ '\n').encode('utf-8'))
-                    else:
-                        self.send_error(400,'Bad Request')
+            try:
+                atmo_meter[0].is_exist()
+            except AttributeError:
+                self.send_error(404,'Not Found')
             else:
-                self.send_error(400,'Bad Request')
+                if len(path_l) == 1:
+                    self.__send_json({"atmosphere":atmo_meter[0].read_all() })
+
+                elif len(path_l) == 2:
+                        if path_l[-1] in atmo_meter[0].sensors :
+                            self.__send_json({path_l[-1] : atmo_meter[0].read_sensor[path_l[-1]]})
+                        
+                        elif path_l[-1] == 'list_sensors':
+                            self.__send_json({'sensors':str(atmo_meter[0].sensors)})
+
+                        else:
+                            self.send_error(400,'Bad Request')
+                else:
+                    self.send_error(400,'Bad Request')
 
         elif path_l[0] == 'predictor':
             flg=0
@@ -237,12 +225,8 @@ class MyHandler(BaseHTTPRequestHandler):
                             except ValueError:
                                 flg = 1
                     if flg == 0 :
-                        response=json.dumps( {path_l[-1] : predictor.predict(path_l[1],coords) } ) + '\n'
                         time.sleep(0.3)
-                        self.send_response(200)
-                        self.send_header('Content-type', 'application/json')
-                        self.end_headers()
-                        self.wfile.write(response.encode('utf-8'))
+                        self.__send_json({path_l[-1] : predictor.predict(path_l[1],coords) } )
                     else:
                         self.send_error(400,'Bad Request')
 
@@ -270,10 +254,10 @@ class MyHandler(BaseHTTPRequestHandler):
             gateway[0]=gateway_without_buffer(req['port'],req['baud'])
             self.send_error(201,'Created')
 
-        elif path_l[0] == 'atmosphere':
+        elif self.path == '/atmosphere/setting':
             req=eval(self.rfile.read(int(self.headers.get('Content-Length', 0))).decode('utf-8'))
             
-            atmo_meter[0]=dumb_atmo(req['port'],req['baud'])
+            atmo_meter[0]=data_server.atmo(req['port'],req['baud'])
             self.send_error(201,'Created')
 
 if __name__ == '__main__':
