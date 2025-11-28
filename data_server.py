@@ -18,6 +18,7 @@ class gateway_without_buffer(data_read.gateway_interface):
     def __init__(self,port,baud):
         print('creating')
         super().__init__(port,baud)
+        print(self.addr)
 
     def read_device__(self,dev_offset):
         data_start=132
@@ -33,6 +34,14 @@ class gateway_without_buffer(data_read.gateway_interface):
             else:
                 data=data+[raw[i]]
         return data
+    
+    def write_reg__(self,addr,data):
+        addr=((addr & 0xff00) >>8),(addr & 0x00ff)
+        data=((data & 0xff00) >>8),(data & 0x00ff)
+        command=[self.addr,0x06,*addr,*data]
+        self.ser.write(bytearray(data_read.addcrc(command)))
+        
+        
 
     def read_device_raw(self,dev_offset):
         data = self.read_device__(dev_offset)
@@ -59,6 +68,11 @@ class gateway_without_buffer(data_read.gateway_interface):
     
     def mute(self):
         return self.write_reg(580,0)
+
+    def set_addr(self,new_addr):
+        print(self.write_reg(581,new_addr))
+        self.addr=17-new_addr
+        
 
     def read_all(self):
         return  { "%#06X" % i :self.read_device_adj(i) for i in self.dev_offset }
@@ -102,8 +116,8 @@ class dumb_predictor:
 
 class MyHandler(BaseHTTPRequestHandler):
 
-    def __send_json(self,dic):
-        self.send_response(200)
+    def __send_json(self,dic,state=200):
+        self.send_response(state)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
         self.wfile.write((json.dumps(dic)+ '\n').encode('utf-8'))
@@ -129,8 +143,10 @@ class MyHandler(BaseHTTPRequestHandler):
 
                         if path_l[-1] == "list_devices" :
                             self.__send_json({ 'devices':  str([ "%#06X" % a  for a in gateway[0].dev_offset]) })
+                        
                         elif path_l[-1] == 'details':
                             self.__send_json(gateway[0].full_data() )
+                        
                         elif path_l[-1] == 'list_device_uuid'  :
                             self.__send_json({ 'uuid':  str([ "%#010" % a  for a in gateway[0].dev_uuid]) })
                         
@@ -144,8 +160,13 @@ class MyHandler(BaseHTTPRequestHandler):
                                 self.__send_json({'success':1})
                             else:
                                 self.send_error(500,'Internal Server Error')
+
+                        elif path_l[-1]=='slave_addr':
+                            self.__send_json({'addr':17-gateway[0].addr})                        
+
                         else:
                             self.send_error(400,'Bad Request')
+                        
                     else:
                         if len(path_l[-1])>7 :
                             if int(path_l[-1],base=0) in gateway[0].dev_uuid:
@@ -178,17 +199,19 @@ class MyHandler(BaseHTTPRequestHandler):
                         self.send_error(400,'Bad Request')
 
         elif path_l[0] == 'atmosphere':
+            print(path_l)
             try:
                 atmo_meter[0].is_exist()
             except AttributeError:
                 self.send_error(404,'Not Found')
             else:
                 if len(path_l) == 1:
+
                     self.__send_json({"atmosphere":atmo_meter[0].read_all() })
 
                 elif len(path_l) == 2:
                         if path_l[-1] in atmo_meter[0].sensors :
-                            self.__send_json({path_l[-1] : atmo_meter[0].read_sensor[path_l[-1]]})
+                            self.__send_json({path_l[-1] : atmo_meter[0].read_sensor(path_l[-1])})
                         
                         elif path_l[-1] == 'list_sensors':
                             self.__send_json({'sensors':str(atmo_meter[0].sensors)})
@@ -252,13 +275,21 @@ class MyHandler(BaseHTTPRequestHandler):
             req=eval(body)
             print(req)
             gateway[0]=gateway_without_buffer(req['port'],req['baud'])
-            self.send_error(201,'Created')
+            self.__send_json({"Succses":1},state=201)
+       
+        elif self.path =='/gateway/setaddr' :
+            body=self.rfile.read(int(self.headers.get('Content-Length', 0))).decode('utf-8')
+            req=eval(body)
+            print(req)
+            res=gateway[0].set_addr(req['addr'])
+            self.__send_json({'new_addr':req['addr']}
 
         elif self.path == '/atmosphere/setting':
             req=eval(self.rfile.read(int(self.headers.get('Content-Length', 0))).decode('utf-8'))
             
-            atmo_meter[0]=data_server.atmo(req['port'],req['baud'])
-            self.send_error(201,'Created')
+            atmo_meter[0]=data_read.atmo(req['port'],req['baud'])
+            self.__send_json({"Succses":1},state=201)
+
 
 if __name__ == '__main__':
     gateway=[1]

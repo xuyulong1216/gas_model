@@ -121,9 +121,9 @@ class gateway_interface:
     def write_reg(self,addr,data):
         addr=((addr & 0xff00) >>8),(addr & 0x00ff)
         data=((data & 0xff00) >>8),(data & 0x00ff)
-        command=[self.addr,0x06,*start_addr,*data]
+        command=[self.addr,0x06,*addr,*data]
         self.ser.write(bytearray(addcrc(command)))
-        re=list(self.read(3))
+        re=list(self.ser.read(3))
         re=re+list(self.ser.read(re[-1]+2))
 
         if re == addcrc(command):
@@ -153,6 +153,10 @@ class atmo:
 #        print (len(self.sensors))
 #        print(len(self.addrs))
         self.compat={self.sensors[i]:self.addrs[i] for i in range(0,len(self.addrs))}   
+        print('created')
+
+    def is_exist(self):
+        return 1 
 
     def read(self,start_addr,data_length):
         start_addr=((start_addr & 0xff00 )>>8),(start_addr& 0x00ff)
@@ -177,11 +181,12 @@ class atmo:
         data=self.read(self.compat[sensor][0],len(self.compat[sensor]))
         if len(data) !=1:
             data=(data[0]<<16)+data[-1]
+        else: 
+            data=data[0]
         return data
     
     def read_all(self):
-
-        return { self.sensors[i]:self.read_sensor(i)  for i in range(0,len(data)) }
+        return { self.sensors[i]:self.read_sensor(self.sensors[i])  for i in range(0,len(self.sensors)) }
 
   
             
