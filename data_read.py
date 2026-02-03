@@ -182,7 +182,7 @@ class atmo:
         if len(data) !=1:
             data=(data[0]<<16)+data[-1]
         elif sensor in ['humidt','tempreture','wind_speed‘]:
-            data=data*0.1
+            data=data[0]*0.1
                         
         else: 
             data=data[0]
@@ -193,4 +193,5 @@ class atmo:
 
   
             
+
 
