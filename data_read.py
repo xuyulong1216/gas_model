@@ -37,8 +37,8 @@ class gateway_interface:
                 self.flg=0
                 break
             self.flg=1
-        if self.flg == 1 :
-            return 1
+       # if self.flg == 1 :
+        #    return 1
         self.bitmap=0
         for i in range(0,4):
             tmp=self.read_group(i)
@@ -156,13 +156,14 @@ class atmo:
                 self.flg=0
                 break
             self.flg=1  
-        if self.flg == 1 :
-            return 1
+       # if self.flg == 1 :
+       #     return 1
         self.sensors=['wind_speed','wind_power','wind_direction_analog','wind_direction_degree','humidit','tempreture','noise','variable','PM10','air_pressure','illuminance_full','illuminance_short','rainfall','compass','sun_radient']
         self.addrs=[[500],[501],[502],[503],[504],[505],[506],[507],[508],[509],[510,511],[512],[513],[514],[515]]
 #        print (len(self.sensors))
 #        print(len(self.addrs))
         self.compat={self.sensors[i]:self.addrs[i] for i in range(0,len(self.addrs))}   
+        self.read_sensor(self.sensors[0])
         print('created')
         return 0
         
@@ -204,6 +205,7 @@ class atmo:
 
   
             
+
 
 
 
