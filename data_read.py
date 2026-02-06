@@ -38,7 +38,7 @@ class gateway_interface:
                 break
             self.flg=1
         if self.flg == 1 :
-            break
+            return 1
         self.bitmap=0
         for i in range(0,4):
             tmp=self.read_group(i)
@@ -48,7 +48,8 @@ class gateway_interface:
         self.dev_uuid=[ (self.read(4+i*2,2)[0]<<8)+self.read(4+i*2,2)[-1] for i in self.dev_offset]
         self.dev_map={self.dev_uuid[i]:self.dev_offset[i]  for i in range(0,len(self.dev_offset))}
         self.dev_reg_description=['sensor0','sensor1','sensor2','sensor3','dev_bat_H','dev_bat_L','stat0','stat1','stat2','stat3']
-
+        return 0
+        
     def is_exist(self):
         return 1
 
@@ -156,14 +157,15 @@ class atmo:
                 break
             self.flg=1  
         if self.flg == 1 :
-            break
+            return 1
         self.sensors=['wind_speed','wind_power','wind_direction_analog','wind_direction_degree','humidit','tempreture','noise','variable','PM10','air_pressure','illuminance_full','illuminance_short','rainfall','compass','sun_radient']
         self.addrs=[[500],[501],[502],[503],[504],[505],[506],[507],[508],[509],[510,511],[512],[513],[514],[515]]
 #        print (len(self.sensors))
 #        print(len(self.addrs))
         self.compat={self.sensors[i]:self.addrs[i] for i in range(0,len(self.addrs))}   
         print('created')
-
+        return 0
+        
     def is_exist(self):
         return 1 
 
@@ -190,7 +192,7 @@ class atmo:
         data=self.read(self.compat[sensor][0],len(self.compat[sensor]))
         if len(data) !=1:
             data=(data[0]<<16)+data[-1]
-        elif sensor in ['humidt','tempreture','wind_speed‘]:
+        elif sensor in ['humidt','tempreture','wind_speed']:
             data=data[0]*0.1
                         
         else: 
@@ -202,6 +204,7 @@ class atmo:
 
   
             
+
 
 
 
