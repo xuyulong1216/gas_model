@@ -26,15 +26,19 @@ class gateway_interface:
         self.baud=baud
         self.ser=ser.Serial(port,baud,timeout=1)
         self.reg_distribution=[[0],[1],[2],[3],[4,131],[132,579],[580],[581],[582,589],[590,597],[598,599],[600],[601,616],[617,624],[625,632],[633],[634],[635]]
-
+        self.flg=0
         for i in range (1,18):
             read=[i,0x03,0x00,0x01,0x00,0x01]
             self.ser.write(bytearray(addcrc(read)))
             result=self.ser.readline()
+            
             if len(result) != 0 and list(result) != [0x05,0xc8,0x01,0xf1,0xc1]:
                 self.addr=i
+                self.flg=0
                 break
-
+            self.flg=1
+        if self.flg == 1 :
+            break
         self.bitmap=0
         for i in range(0,4):
             tmp=self.read_group(i)
@@ -141,13 +145,18 @@ class atmo:
         self.addr=1
         self.baud=baud
         self.ser=ser.Serial(port,baud,timeout=1)
+        self.flg=0
         for i in range (1,18):
             read=[i,0x03,0x00,0x01,0x00,0x01]
             self.ser.write(bytearray(addcrc(read)))
             result=self.ser.readline()
             if len(result) != 0 and list(result) != [0x05,0xc8,0x01,0xf1,0xc1]:
                 self.addr=i
+                self.flg=0
                 break
+            self.flg=1  
+        if self.flg == 1 :
+            break
         self.sensors=['wind_speed','wind_power','wind_direction_analog','wind_direction_degree','humidit','tempreture','noise','variable','PM10','air_pressure','illuminance_full','illuminance_short','rainfall','compass','sun_radient']
         self.addrs=[[500],[501],[502],[503],[504],[505],[506],[507],[508],[509],[510,511],[512],[513],[514],[515]]
 #        print (len(self.sensors))
@@ -193,5 +202,6 @@ class atmo:
 
   
             
+
 
 
