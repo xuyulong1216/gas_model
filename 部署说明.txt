@@ -1,0 +1,13 @@
+解压此压缩包，在此目录下使用pip安装依赖：
+
+pip3 install -r requirements.txt
+
+运行时使用python，以root权限运行data_server.py:
+
+sudo python3 data_server.py
+
+若需自动启动，可配合crontab进行，在root权限下运行crontab -e，在文件内添加此行
+
+@reboot cd </path/to/project> && python3 data_server.py
+
+将 </path/to/project> 替换为此压缩包解压位置 
